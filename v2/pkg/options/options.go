@@ -85,7 +85,7 @@ type App struct {
 
 	SingleInstanceLock *SingleInstanceLock
 
-	Windows *windows.Options
+	Windows *WindowsOptions
 	Mac     *mac.Options
 	Linux   *linux.Options
 
