@@ -50,6 +50,8 @@ func sliceToMap(input []string) map[string]struct{} {
 	return result
 }
 
+//
+
 // Application runs the application in dev mode
 func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 	cwd := lo.Must(os.Getwd())
