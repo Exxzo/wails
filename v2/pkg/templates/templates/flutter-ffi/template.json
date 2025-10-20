@@ -1,0 +1,9 @@
+{
+  "name": "Flutter FFI",
+  "shortname": "flutter-ffi",
+  "author": "Wails Team",
+  "description": "Flutter app loading Go via FFI (c-shared library)",
+  "helpurl": "https://wails.io"
+}
+
+

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "{{.ProjectName}}",
+  "outputfilename": "{{.BinaryName}}",
+  "outputType": "ffilibrary",
+  "frontend:install": "flutter pub get",
+  "frontend:dev:watcher": "flutter run",
+  "frontend:build": "",
+  "frontend:dir": "frontend",
+  "preBuildHooks": {
+    "*/*": "flutter create . --platforms=android,ios,macos,windows,linux,web --overwrite"
+  },
+  "author": {
+    "name": "{{.AuthorName}}",
+    "email": "{{.AuthorEmail}}"
+  }
+}
+
+

@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package wails.v2;
+
+option go_package = "github.com/wailsapp/wails/v2/internal/proto;wailspb";
+
+message CallRequest {
+  string method = 1;            // e.g. "pkg.Struct.Method"
+  bytes  args_proto = 2;        // optional protobuf-encoded args blob (reserved for future)
+  string args_json = 3;         // fallback JSON-encoded args (matches current Wails JSON payload)
+}
+
+message CallResponse {
+  string error = 1;
+  bytes  result_proto = 2;      // optional protobuf-encoded result
+  string result_json = 3;       // fallback JSON-encoded result
+}
+
+message EventSubscribe {
+  string name = 1;              // event name
+}
+
+message EventNotify {
+  string name = 1;
+  string payload_json = 2;
+}
+
+service WailsService {
+  rpc Call(CallRequest) returns (CallResponse);
+  rpc StreamEvents(EventSubscribe) returns (stream EventNotify);
+}
+
+

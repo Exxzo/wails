@@ -1,0 +1,18 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "{{.ProjectName}}",
+  "outputfilename": "{{.BinaryName}}",
+  "frontend:install": "flutter pub get",
+  "frontend:build": "flutter build web",
+  "frontend:dev:watcher": "flutter run -d web-server --web-port=34115 --web-hostname=127.0.0.1",
+  "frontend:dev:serverUrl": "http://127.0.0.1:34115",
+  "frontend:dir": "frontend",
+  "preBuildHooks": {
+    "*/*": "flutter create . --platforms=web --overwrite"
+  },
+  "author": {
+    "name": "{{.AuthorName}}",
+    "email": "{{.AuthorEmail}}"
+  }
+}
+

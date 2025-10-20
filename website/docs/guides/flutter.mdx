@@ -1,0 +1,29 @@
+---
+title: Using Flutter with Wails
+---
+
+Wails can host Flutter in three ways:
+
+- Flutter Web in Wails WebView (100% reuse of existing stack)
+- Flutter Desktop with gRPC IPC
+- Flutter via FFI (Go as c-shared library loaded in Flutter)
+
+Initialize:
+
+```bash
+wails init -t flutter-web -n myapp
+wails init -t flutter-grpc -n myapp
+wails init -t flutter-ffi -n myapp
+```
+
+Dev:
+- `wails dev` launches the appropriate Flutter watcher and rebuilds Go on change.
+- For `flutter-web`, Wails proxies the detected web server into the window.
+- For `flutter-grpc`, Flutter connects to `grpc://127.0.0.1:50051`.
+- For `flutter-ffi`, Wails rebuilds a c-shared library and touches `lib/reload.trigger` so Flutter can reload.
+
+Build:
+- `wails build` runs the configured Flutter build and embeds/bundles artifacts where applicable.
+- For `flutter-ffi`, the shared library is written to `build/bin/` and should be bundled per-platform into your Flutter app.
+
+

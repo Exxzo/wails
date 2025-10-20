@@ -116,7 +116,9 @@ func Build(options *Options) (string, error) {
 	builder.SetProjectData(options.ProjectData)
 
 	hookArgs := map[string]string{
-		"${platform}": options.Platform + "/" + options.Arch,
+		"${platform}":    options.Platform + "/" + options.Arch,
+		"${frontendDir}": options.ProjectData.GetFrontendDir(),
+		"${projectDir}":  options.ProjectData.Path,
 	}
 
 	for _, hook := range []string{options.Platform + "/" + options.Arch, options.Platform + "/*", "*/*"} {
@@ -442,7 +444,30 @@ func executeBuildHook(_ *clilogger.CLILogger, options *Options, hookIdentifier s
 		}
 	}
 
-	stdout, stderr, err := shell.RunCommand(options.BinDirectory, args[0], args[1:]...)
+	// Decide working directory for the hook
+	workingDir := options.BinDirectory
+	// If the hook is a Flutter command, run from the frontend directory so relative paths (.) resolve correctly
+	isFlutter := false
+	if len(args) > 0 && args[0] == "flutter" {
+		isFlutter = true
+	}
+	// Support shell wrapper: sh -c "flutter ..." or cmd /C "flutter ..."
+	if len(args) >= 3 && ((args[0] == "sh" && args[1] == "-c") || (strings.EqualFold(args[0], "cmd") && strings.EqualFold(args[1], "/C"))) {
+		if strings.Contains(args[2], "flutter ") || strings.HasPrefix(args[2], "flutter") {
+			isFlutter = true
+		}
+	}
+	if isFlutter {
+		workingDir = options.ProjectData.GetFrontendDir()
+		if !fs.DirExists(workingDir) {
+			// Ensure frontend dir exists prior to flutter create
+			if err := fs.MkDirs(workingDir); err != nil {
+				return fmt.Errorf("could not create frontend directory: %s", err.Error())
+			}
+		}
+	}
+
+	stdout, stderr, err := shell.RunCommand(workingDir, args[0], args[1:]...)
 	if options.Verbosity == VERBOSE {
 		pterm.Info.Println(stdout)
 	}

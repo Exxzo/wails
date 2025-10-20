@@ -1,0 +1,7 @@
+{
+  "name": "Flutter gRPC",
+  "shortname": "flutter-grpc",
+  "author": "Wails Team",
+  "description": "Flutter Desktop/Mobile with gRPC backend server",
+  "helpurl": "https://wails.io"
+}

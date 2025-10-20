@@ -1,0 +1,60 @@
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+    "os/signal"
+    "syscall"
+
+    "github.com/wailsapp/wails/v2/internal/binding"
+    "github.com/wailsapp/wails/v2/internal/frontend/dispatcher"
+    "github.com/wailsapp/wails/v2/internal/frontend/grpcserver"
+    "github.com/wailsapp/wails/v2/internal/frontend/runtime"
+    "github.com/wailsapp/wails/v2/internal/logger"
+    "github.com/wailsapp/wails/v2/pkg/options"
+)
+
+func main() {
+    // Create app instance
+    app := NewApp()
+
+    // Create logger
+    myLogger := logger.New(nil)
+
+    // Create bindings for the app
+    appBindings := binding.NewBindings(myLogger, []interface{}{app}, nil, false, nil)
+
+    // Create event handler
+    eventHandler := runtime.NewEvents(myLogger)
+
+    // Create dispatcher
+    ctx := context.Background()
+    messageDispatcher := dispatcher.NewDispatcher(ctx, myLogger, appBindings, eventHandler, nil, false)
+
+    // Start gRPC server
+    addr := "127.0.0.1:50051"
+    stop, err := grpcserver.Serve(addr, messageDispatcher, appBindings.DB(), myLogger)
+    if err != nil {
+        log.Fatalf("Failed to start gRPC server: %v", err)
+    }
+    defer func() {
+        if err := stop(); err != nil {
+            log.Printf("Error stopping gRPC server: %v", err)
+        }
+    }()
+
+    log.Printf("gRPC server listening on %s", addr)
+
+    // Call startup if provided
+    if app.startup != nil {
+        app.startup(ctx)
+    }
+
+    // Wait for interrupt signal
+    c := make(chan os.Signal, 1)
+    signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+    <-c
+
+    log.Println("Shutting down gRPC server...")
+}

@@ -554,27 +554,45 @@ func (b *BaseBuilder) BuildFrontend(outputLogger *clilogger.CLILogger) error {
 		return fmt.Errorf("frontend directory '%s' does not exist", frontendDir)
 	}
 
-	// Check there is an 'InstallCommand' provided in wails.json
-	installCommand := b.projectData.InstallCommand
-	if b.projectData.OutputType == "dev" {
-		installCommand = b.projectData.GetDevInstallerCommand()
-	}
-	if installCommand == "" {
-		// No - don't install
-		printBulletPoint("No Install command. Skipping.")
-		pterm.Println("")
-	} else {
-		// Do install if needed
-		printBulletPoint("Installing frontend dependencies: ")
-		if verbose {
-			pterm.Println("")
-			pterm.Info.Println("Install command: '" + installCommand + "'")
-		}
-		if err := b.NpmInstallUsingCommand(frontendDir, installCommand, verbose); err != nil {
-			return err
-		}
-		outputLogger.Println("Done.")
-	}
+    // Check there is an 'InstallCommand' provided in wails.json
+    installCommand := b.projectData.InstallCommand
+    if b.projectData.OutputType == "dev" {
+        installCommand = b.projectData.GetDevInstallerCommand()
+    }
+    if installCommand == "" {
+        // No - don't install
+        printBulletPoint("No Install command. Skipping.")
+        pterm.Println("")
+    } else {
+        // Do install if needed
+        printBulletPoint("Installing frontend dependencies: ")
+        if verbose {
+            pterm.Println("")
+            pterm.Info.Println("Install command: '" + installCommand + "'")
+        }
+        // If this is an npm-family command, use the npm-aware path; otherwise, exec generically (for Flutter, etc.)
+        lower := strings.ToLower(strings.TrimSpace(installCommand))
+        if strings.HasPrefix(lower, "npm ") || strings.HasPrefix(lower, "pnpm ") || strings.HasPrefix(lower, "yarn ") {
+            if err := b.NpmInstallUsingCommand(frontendDir, installCommand, verbose); err != nil {
+                return err
+            }
+        } else {
+            cmd := strings.Split(installCommand, " ")
+            stdout, stderr, err := shell.RunCommand(frontendDir, cmd[0], cmd[1:]...)
+            if verbose || err != nil {
+                for _, l := range strings.Split(stdout, "\n") {
+                    pterm.Printf("    %s\n", l)
+                }
+                for _, l := range strings.Split(stderr, "\n") {
+                    pterm.Printf("    %s\n", l)
+                }
+            }
+            if err != nil {
+                return err
+            }
+        }
+        outputLogger.Println("Done.")
+    }
 
 	// Check if there is a build command
 	buildCommand := b.projectData.BuildCommand
