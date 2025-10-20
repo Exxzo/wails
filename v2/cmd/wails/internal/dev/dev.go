@@ -126,6 +126,18 @@ func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 	// Do initial build but only for the application.
 	logger.Println("Building application for development...")
 	buildOptions.IgnoreFrontend = true
+
+	// Handle special output types
+	isGrpcMode := projectConfig.OutputType == "grpcserver"
+	isFFIMode := projectConfig.OutputType == "ffilibrary" || projectConfig.OutputType == "ffi-library" || projectConfig.OutputType == "ffi"
+	if isGrpcMode {
+		logger.Println("gRPC server mode detected")
+		buildOptions.OutputType = "grpcserver"
+	} else if isFFIMode {
+		logger.Println("FFI library mode detected")
+		buildOptions.OutputType = "ffilibrary"
+	}
+
 	debugBinaryProcess, appBinary, err := restartApp(buildOptions, nil, f, exitCodeChannel, legacyUseDevServerInsteadofCustomScheme)
 	buildOptions.IgnoreFrontend = ignoreFrontend || f.FrontendDevServerURL != ""
 	if err != nil {
@@ -137,24 +149,46 @@ func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 		}
 	}()
 
-	// open browser
-	if f.Browser {
-		err = browser.OpenURL(f.DevServerURL().String())
-		if err != nil {
-			return err
+	// Launch Flutter watcher (gRPC/FFI modes) or open browser (webview mode)
+	if isGrpcMode || isFFIMode {
+		if command := projectConfig.DevWatcherCommand; command != "" {
+			logutils.LogGreen("Launching Flutter watcher: %s", command)
+			closer, _, _, err := runFrontendDevWatcherCommand(projectConfig.GetFrontendDir(), command, false, projectConfig.ViteServerTimeout)
+			if err != nil {
+				return err
+			}
+			defer closer()
 		}
-	}
-
-	logutils.LogGreen("Using DevServer URL: %s", f.DevServerURL())
-	if f.FrontendDevServerURL != "" {
-		logutils.LogGreen("Using Frontend DevServer URL: %s", f.FrontendDevServerURL)
+		if isGrpcMode {
+			logutils.LogGreen("gRPC server running on 127.0.0.1:50051")
+		} else {
+			logutils.LogGreen("FFI library rebuilds will trigger Flutter reloads")
+		}
+	} else {
+		if f.Browser {
+			err = browser.OpenURL(f.DevServerURL().String())
+			if err != nil {
+				return err
+			}
+		}
+		logutils.LogGreen("Using DevServer URL: %s", f.DevServerURL())
+		if f.FrontendDevServerURL != "" {
+			logutils.LogGreen("Using Frontend DevServer URL: %s", f.FrontendDevServerURL)
+		}
 	}
 	logutils.LogGreen("Using reload debounce setting of %d milliseconds", f.Debounce)
 
 	// Show dev server URL in terminal after 3 seconds
 	go func() {
 		time.Sleep(3 * time.Second)
-		logutils.LogGreen("\n\nTo develop in the browser and call your bound Go methods from Javascript, navigate to: %s", f.DevServerURL())
+		if isGrpcMode {
+			logutils.LogGreen("\n\ngRPC server is running on grpc://127.0.0.1:50051")
+			logutils.LogGreen("Flutter app should connect to this server for backend communication")
+		} else if isFFIMode {
+			logutils.LogGreen("\n\nFFI library build mode active - watching and rebuilding shared library on changes")
+		} else {
+			logutils.LogGreen("\n\nTo develop in the browser and call your bound Go methods from Javascript, navigate to: %s", f.DevServerURL())
+		}
 	}()
 
 	// Watch for changes and trigger restartApp()
@@ -471,6 +505,12 @@ func doWatcherLoop(cwd string, reloadDirs string, buildOptions *build.Options, d
 					// If we have a new process, saveConfig it
 					if newBinaryProcess != nil {
 						debugBinaryProcess = newBinaryProcess
+					}
+					// In FFI mode, touch a reload trigger file for Flutter to watch
+					if buildOptions.OutputType == "ffilibrary" {
+						triggerFile := filepath.Join(buildOptions.ProjectData.GetFrontendDir(), "lib", "reload.trigger")
+						_ = os.MkdirAll(filepath.Dir(triggerFile), 0o755)
+						_ = os.WriteFile(triggerFile, []byte(time.Now().Format(time.RFC3339Nano)), 0o644)
 					}
 				}
 			}

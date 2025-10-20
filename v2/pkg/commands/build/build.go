@@ -100,6 +100,11 @@ func Build(options *Options) (string, error) {
 		builder = newDesktopBuilder(options)
 	case "dev":
 		builder = newDesktopBuilder(options)
+	case "grpcserver":
+		// Reuse desktop builder for compilation & packaging; runtime differs by app code
+		builder = newDesktopBuilder(options)
+	case "ffilibrary", "ffi-library", "ffi":
+		builder = newFFIBuilder(options)
 	default:
 		return "", fmt.Errorf("cannot build assets for output type %s", options.ProjectData.OutputType)
 	}

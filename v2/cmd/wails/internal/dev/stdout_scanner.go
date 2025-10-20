@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/acarl005/stripansi"
@@ -18,6 +19,7 @@ type stdoutScanner struct {
 	ViteServerURLChan  chan string
 	ViteServerVersionC chan string
 	versionDetected    bool
+	urlDetected        bool
 }
 
 // NewStdoutScanner creates a new stdoutScanner
@@ -56,9 +58,35 @@ func (s *stdoutScanner) Write(data []byte) (n int, err error) {
 			logutils.LogGreen("Vite Server URL: %s", viteServerURL)
 			_, err := url.Parse(viteServerURL)
 			if err != nil {
-				logutils.LogRed(err.Error())
+				logutils.LogRed("%s", err.Error())
 			} else {
-				s.ViteServerURLChan <- viteServerURL
+				if !s.urlDetected {
+					s.urlDetected = true
+					s.ViteServerURLChan <- viteServerURL
+				}
+			}
+		}
+	}
+
+	// Fallback: detect generic http(s) URLs (e.g., Flutter web-server output)
+	if !s.urlDetected {
+		// Look for first http(s) URL in the output
+		re := regexp.MustCompile(`https?://[^\s]+`)
+		urls := re.FindAllString(input, -1)
+		for _, u := range urls {
+			// Prefer localhost/127.0.0.1/0.0.0.0
+			parsed, perr := url.Parse(u)
+			if perr != nil {
+				continue
+			}
+			host := parsed.Hostname()
+			if host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" {
+				if !s.urlDetected {
+					s.urlDetected = true
+					logutils.LogGreen("Detected DevServer URL: %s", u)
+					s.ViteServerURLChan <- u
+				}
+				break
 			}
 		}
 	}
