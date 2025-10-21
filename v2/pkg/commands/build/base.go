@@ -554,45 +554,45 @@ func (b *BaseBuilder) BuildFrontend(outputLogger *clilogger.CLILogger) error {
 		return fmt.Errorf("frontend directory '%s' does not exist", frontendDir)
 	}
 
-    // Check there is an 'InstallCommand' provided in wails.json
-    installCommand := b.projectData.InstallCommand
-    if b.projectData.OutputType == "dev" {
-        installCommand = b.projectData.GetDevInstallerCommand()
-    }
-    if installCommand == "" {
-        // No - don't install
-        printBulletPoint("No Install command. Skipping.")
-        pterm.Println("")
-    } else {
-        // Do install if needed
-        printBulletPoint("Installing frontend dependencies: ")
-        if verbose {
-            pterm.Println("")
-            pterm.Info.Println("Install command: '" + installCommand + "'")
-        }
-        // If this is an npm-family command, use the npm-aware path; otherwise, exec generically (for Flutter, etc.)
-        lower := strings.ToLower(strings.TrimSpace(installCommand))
-        if strings.HasPrefix(lower, "npm ") || strings.HasPrefix(lower, "pnpm ") || strings.HasPrefix(lower, "yarn ") {
-            if err := b.NpmInstallUsingCommand(frontendDir, installCommand, verbose); err != nil {
-                return err
-            }
-        } else {
-            cmd := strings.Split(installCommand, " ")
-            stdout, stderr, err := shell.RunCommand(frontendDir, cmd[0], cmd[1:]...)
-            if verbose || err != nil {
-                for _, l := range strings.Split(stdout, "\n") {
-                    pterm.Printf("    %s\n", l)
-                }
-                for _, l := range strings.Split(stderr, "\n") {
-                    pterm.Printf("    %s\n", l)
-                }
-            }
-            if err != nil {
-                return err
-            }
-        }
-        outputLogger.Println("Done.")
-    }
+	// Check there is an 'InstallCommand' provided in wails.json
+	installCommand := b.projectData.InstallCommand
+	if b.projectData.OutputType == "dev" {
+		installCommand = b.projectData.GetDevInstallerCommand()
+	}
+	if installCommand == "" {
+		// No - don't install
+		printBulletPoint("No Install command. Skipping.")
+		pterm.Println("")
+	} else {
+		// Do install if needed
+		printBulletPoint("Installing frontend dependencies: ")
+		if verbose {
+			pterm.Println("")
+			pterm.Info.Println("Install command: '" + installCommand + "'")
+		}
+		// If this is an npm-family command, use the npm-aware path; otherwise, exec generically (for Flutter, etc.)
+		lower := strings.ToLower(strings.TrimSpace(installCommand))
+		if strings.HasPrefix(lower, "npm ") || strings.HasPrefix(lower, "pnpm ") || strings.HasPrefix(lower, "yarn ") {
+			if err := b.NpmInstallUsingCommand(frontendDir, installCommand, verbose); err != nil {
+				return err
+			}
+		} else {
+			cmd := strings.Split(installCommand, " ")
+			stdout, stderr, err := shell.RunCommand(frontendDir, cmd[0], cmd[1:]...)
+			if verbose || err != nil {
+				for _, l := range strings.Split(stdout, "\n") {
+					pterm.Printf("    %s\n", l)
+				}
+				for _, l := range strings.Split(stderr, "\n") {
+					pterm.Printf("    %s\n", l)
+				}
+			}
+			if err != nil {
+				return err
+			}
+		}
+		outputLogger.Println("Done.")
+	}
 
 	// Check if there is a build command
 	buildCommand := b.projectData.BuildCommand
@@ -607,24 +607,105 @@ func (b *BaseBuilder) BuildFrontend(outputLogger *clilogger.CLILogger) error {
 	}
 
 	printBulletPoint("Compiling frontend: ")
-	cmd := strings.Split(buildCommand, " ")
-	if verbose {
-		pterm.Println("")
-		pterm.Info.Println("Build command: '" + buildCommand + "'")
-	}
-	stdout, stderr, err := shell.RunCommand(frontendDir, cmd[0], cmd[1:]...)
-	if verbose || err != nil {
-		for _, l := range strings.Split(stdout, "\n") {
-			pterm.Printf("    %s\n", l)
+
+	// Handle Flutter commands with proper output formatting
+	lower := strings.ToLower(strings.TrimSpace(buildCommand))
+	if strings.HasPrefix(lower, "flutter ") {
+		// Check if this is a generic Flutter build command that needs platform-specific handling
+		if strings.Contains(lower, "flutter build") && !strings.Contains(lower, "--target-platform") && !strings.Contains(lower, "web") && !strings.Contains(lower, "windows") && !strings.Contains(lower, "macos") && !strings.Contains(lower, "linux") && !strings.Contains(lower, "ios") && !strings.Contains(lower, "apk") {
+			// Auto-detect platform and use appropriate Flutter build command
+			flutterCommand := b.getFlutterBuildCommandForPlatform(b.options.Platform, b.options.Arch)
+			if verbose {
+				pterm.Info.Println("Auto-detected Flutter build command: " + flutterCommand)
+			}
+			if err := b.runFlutterCommand(frontendDir, flutterCommand, verbose); err != nil {
+				return err
+			}
+		} else {
+			if err := b.runFlutterCommand(frontendDir, buildCommand, verbose); err != nil {
+				return err
+			}
 		}
-		for _, l := range strings.Split(stderr, "\n") {
-			pterm.Printf("    %s\n", l)
+	} else {
+		cmd := strings.Split(buildCommand, " ")
+		if verbose {
+			pterm.Println("")
+			pterm.Info.Println("Build command: '" + buildCommand + "'")
 		}
-	}
-	if err != nil {
-		return err
+		stdout, stderr, err := shell.RunCommand(frontendDir, cmd[0], cmd[1:]...)
+		if verbose || err != nil {
+			for _, l := range strings.Split(stdout, "\n") {
+				pterm.Printf("    %s\n", l)
+			}
+			for _, l := range strings.Split(stderr, "\n") {
+				pterm.Printf("    %s\n", l)
+			}
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	pterm.Println("Done.")
 	return nil
+}
+
+// runFlutterCommand executes Flutter commands with proper output formatting
+func (b *BaseBuilder) runFlutterCommand(frontendDir, command string, verbose bool) error {
+	cmd := strings.Split(command, " ")
+	if verbose {
+		pterm.Println("")
+		pterm.Info.Println("Flutter command: '" + command + "'")
+	}
+
+	stdout, stderr, err := shell.RunCommand(frontendDir, cmd[0], cmd[1:]...)
+	if verbose || err != nil {
+		// Format Flutter output nicely
+		for _, line := range strings.Split(stdout, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				// Flutter uses emojis and colors, preserve them
+				pterm.Printf("    %s\n", line)
+			}
+		}
+		for _, line := range strings.Split(stderr, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				pterm.Printf("    %s\n", line)
+			}
+		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("Flutter command failed: %s", err)
+	}
+
+	return nil
+}
+
+// getFlutterBuildCommandForPlatform returns the appropriate Flutter build command for a platform
+func (b *BaseBuilder) getFlutterBuildCommandForPlatform(platform, arch string) string {
+	switch platform {
+	case "android":
+		switch arch {
+		case "arm":
+			return "flutter build apk --target-platform android-arm"
+		case "amd64":
+			return "flutter build apk --target-platform android-x64"
+		default:
+			return "flutter build apk --target-platform android-arm64"
+		}
+	case "ios":
+		return "flutter build ios --release"
+	case "web":
+		return "flutter build web --release"
+	case "windows":
+		return "flutter build windows --release"
+	case "macos":
+		return "flutter build macos --release"
+	case "linux":
+		return "flutter build linux --release"
+	default:
+		return "flutter build web --release"
+	}
 }

@@ -2,6 +2,7 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "{{.ProjectName}}",
   "outputfilename": "{{.BinaryName}}",
+  "outputType": "flutter-web",
   "frontend:install": "flutter pub get",
   "frontend:build": "flutter build web",
   "frontend:dev:watcher": "flutter run -d web-server --web-port=34115 --web-hostname=127.0.0.1",

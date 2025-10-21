@@ -105,6 +105,15 @@ func Build(options *Options) (string, error) {
 		builder = newDesktopBuilder(options)
 	case "ffilibrary", "ffi-library", "ffi":
 		builder = newFFIBuilder(options)
+	case "flutter-web":
+		// Flutter Web uses the same builder as desktop but with Flutter-specific frontend handling
+		builder = newDesktopBuilder(options)
+	case "flutter-desktop":
+		// Flutter Desktop uses the same builder as desktop but with Flutter-specific frontend handling
+		builder = newDesktopBuilder(options)
+	case "flutter-mobile":
+		// Flutter Mobile uses the same builder as desktop but with Flutter-specific frontend handling
+		builder = newDesktopBuilder(options)
 	default:
 		return "", fmt.Errorf("cannot build assets for output type %s", options.ProjectData.OutputType)
 	}

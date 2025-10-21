@@ -1,0 +1,17 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "{{.ProjectName}}",
+  "outputfilename": "{{.BinaryName}}",
+  "outputType": "grpcserver",
+  "frontend:install": "flutter pub get",
+  "frontend:build": "flutter build apk",
+  "frontend:dev:watcher": "flutter run",
+  "frontend:dir": "frontend",
+  "preBuildHooks": {
+    "*/*": "flutter create . --platforms=android,ios --overwrite"
+  },
+  "author": {
+    "name": "{{.AuthorName}}",
+    "email": "{{.AuthorEmail}}"
+  }
+}

@@ -1,0 +1,8 @@
+name: wails_ffi
+description: Dart bindings to Wails c-shared library
+output: lib/src/ffi/wails_ffi_bindings.dart
+headers:
+  entry-points:
+    - ../build/bin/*.h  # Will find any .h files in build/bin directory
+ffi-native:
+  asset: true

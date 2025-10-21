@@ -2,53 +2,49 @@ package main
 
 import (
     "context"
+    "fmt"
     "log"
+    "net"
     "os"
     "os/signal"
     "syscall"
 
-    "github.com/wailsapp/wails/v2/internal/binding"
-    "github.com/wailsapp/wails/v2/internal/frontend/dispatcher"
-    "github.com/wailsapp/wails/v2/internal/frontend/grpcserver"
-    "github.com/wailsapp/wails/v2/internal/frontend/runtime"
-    "github.com/wailsapp/wails/v2/internal/logger"
-    "github.com/wailsapp/wails/v2/pkg/options"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/reflection"
 )
 
 func main() {
     // Create app instance
     app := NewApp()
 
-    // Create logger
-    myLogger := logger.New(nil)
-
-    // Create bindings for the app
-    appBindings := binding.NewBindings(myLogger, []interface{}{app}, nil, false, nil)
-
-    // Create event handler
-    eventHandler := runtime.NewEvents(myLogger)
-
-    // Create dispatcher
-    ctx := context.Background()
-    messageDispatcher := dispatcher.NewDispatcher(ctx, myLogger, appBindings, eventHandler, nil, false)
+    // Create gRPC server
+    grpcServer := grpc.NewServer()
+    
+    // Register your service
+    // RegisterGreeterServer(grpcServer, app)
+    
+    // Enable reflection for debugging
+    reflection.Register(grpcServer)
 
     // Start gRPC server
     addr := "127.0.0.1:50051"
-    stop, err := grpcserver.Serve(addr, messageDispatcher, appBindings.DB(), myLogger)
+    listener, err := net.Listen("tcp", addr)
     if err != nil {
-        log.Fatalf("Failed to start gRPC server: %v", err)
+        log.Fatalf("Failed to listen on %s: %v", addr, err)
     }
-    defer func() {
-        if err := stop(); err != nil {
-            log.Printf("Error stopping gRPC server: %v", err)
+
+    log.Printf("gRPC server listening on %s", addr)
+    
+    // Start server in goroutine
+    go func() {
+        if err := grpcServer.Serve(listener); err != nil {
+            log.Fatalf("Failed to serve gRPC: %v", err)
         }
     }()
 
-    log.Printf("gRPC server listening on %s", addr)
-
     // Call startup if provided
     if app.startup != nil {
-        app.startup(ctx)
+        app.startup(context.Background())
     }
 
     // Wait for interrupt signal
@@ -57,4 +53,5 @@ func main() {
     <-c
 
     log.Println("Shutting down gRPC server...")
+    grpcServer.GracefulStop()
 }

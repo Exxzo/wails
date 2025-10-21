@@ -1,0 +1,18 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "{{.ProjectName}}",
+  "outputfilename": "{{.BinaryName}}",
+  "outputType": "ffilibrary",
+  "frontend:install": "flutter pub get",
+  "frontend:build": "flutter build apk",
+  "frontend:dev:watcher": "flutter run",
+  "frontend:dir": "frontend",
+  "preBuildHooks": {
+    "*/*": "sh -c 'cd \"${frontendDir}\" && dart run ffigen'",
+    "windows/*": "cmd /C \"cd /D ${frontendDir} && dart run ffigen\""
+  },
+  "author": {
+    "name": "{{.AuthorName}}",
+    "email": "{{.AuthorEmail}}"
+  }
+}

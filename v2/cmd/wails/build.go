@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/wailsapp/wails/v2/pkg/commands/buildtags"
 	"os"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/wailsapp/wails/v2/pkg/commands/buildtags"
 
 	"github.com/leaanthony/slicer"
 	"github.com/pterm/pterm"
@@ -148,6 +149,14 @@ func buildApplication(f *flags.Build) error {
 		"windows/amd64",
 		"windows/arm64",
 		"windows/386",
+		// Mobile platforms
+		"android",
+		"android/arm64",
+		"android/arm",
+		"android/amd64",
+		"ios",
+		"ios/arm64",
+		"ios/arm",
 	})
 
 	outputBinaries := map[string]string{}
@@ -204,6 +213,12 @@ func buildApplication(f *flags.Build) error {
 			if macTargets.Length() == 2 {
 				buildOptions.BundleName = fmt.Sprintf("%s-%s.app", desiredFilename, buildOptions.Arch)
 			}
+		case "android":
+			// Mobile platform - CGO will be handled by the Go compiler automatically
+			pterm.Info.Println("Building for Android")
+		case "ios":
+			// Mobile platform - CGO will be handled by the Go compiler automatically
+			pterm.Info.Println("Building for iOS")
 		}
 
 		if targets.Length() > 1 {
@@ -212,6 +227,8 @@ func buildApplication(f *flags.Build) error {
 			case "windows":
 				desiredFilename = fmt.Sprintf("%s-%s", desiredFilename, buildOptions.Arch)
 			case "linux", "darwin":
+				desiredFilename = fmt.Sprintf("%s-%s-%s", desiredFilename, buildOptions.Platform, buildOptions.Arch)
+			case "android", "ios":
 				desiredFilename = fmt.Sprintf("%s-%s-%s", desiredFilename, buildOptions.Platform, buildOptions.Arch)
 			}
 		}

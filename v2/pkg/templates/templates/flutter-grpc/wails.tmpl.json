@@ -8,7 +8,8 @@
   "frontend:dev:watcher": "flutter run",
   "frontend:dir": "frontend",
   "preBuildHooks": {
-    "*/*": "flutter create . --platforms=android,ios,macos,windows,linux,web --overwrite"
+    "*/*": "sh -c 'cd \"${projectDir}\" && protoc -I proto --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/*.proto && protoc -I proto --dart_out=grpc:\"${frontendDir}\"/lib/src/generated proto/*.proto'",
+    "windows/*": "cmd /C \"cd /D ${projectDir} && protoc -I proto --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/*.proto && protoc -I proto --dart_out=grpc:${frontendDir}/lib/src/generated proto/*.proto\""
   },
   "author": {
     "name": "{{.AuthorName}}",

@@ -132,12 +132,25 @@ func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 	// Handle special output types
 	isGrpcMode := projectConfig.OutputType == "grpcserver"
 	isFFIMode := projectConfig.OutputType == "ffilibrary" || projectConfig.OutputType == "ffi-library" || projectConfig.OutputType == "ffi"
+	isFlutterWebMode := projectConfig.OutputType == "flutter-web"
+	isFlutterDesktopMode := projectConfig.OutputType == "flutter-desktop" || projectConfig.OutputType == "flutter-mobile"
+	isFlutterMobileMode := projectConfig.OutputType == "flutter-mobile"
+
 	if isGrpcMode {
 		logger.Println("gRPC server mode detected")
 		buildOptions.OutputType = "grpcserver"
 	} else if isFFIMode {
 		logger.Println("FFI library mode detected")
 		buildOptions.OutputType = "ffilibrary"
+	} else if isFlutterWebMode {
+		logger.Println("Flutter Web mode detected")
+		buildOptions.OutputType = "flutter-web"
+	} else if isFlutterDesktopMode {
+		logger.Println("Flutter Desktop/Mobile mode detected")
+		buildOptions.OutputType = projectConfig.OutputType
+	} else if isFlutterMobileMode {
+		logger.Println("Flutter Mobile mode detected")
+		buildOptions.OutputType = "flutter-mobile"
 	}
 
 	debugBinaryProcess, appBinary, err := restartApp(buildOptions, nil, f, exitCodeChannel, legacyUseDevServerInsteadofCustomScheme)
@@ -151,8 +164,8 @@ func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 		}
 	}()
 
-	// Launch Flutter watcher (gRPC/FFI modes) or open browser (webview mode)
-	if isGrpcMode || isFFIMode {
+	// Launch Flutter watcher (gRPC/FFI/Flutter modes) or open browser (webview mode)
+	if isGrpcMode || isFFIMode || isFlutterDesktopMode || isFlutterMobileMode {
 		if command := projectConfig.DevWatcherCommand; command != "" {
 			logutils.LogGreen("Launching Flutter watcher: %s", command)
 			closer, _, _, err := runFrontendDevWatcherCommand(projectConfig.GetFrontendDir(), command, false, projectConfig.ViteServerTimeout)
@@ -163,8 +176,24 @@ func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 		}
 		if isGrpcMode {
 			logutils.LogGreen("gRPC server running on 127.0.0.1:50051")
-		} else {
+		} else if isFFIMode {
 			logutils.LogGreen("FFI library rebuilds will trigger Flutter reloads")
+		} else if isFlutterDesktopMode {
+			logutils.LogGreen("Flutter app running in development mode")
+		} else if isFlutterMobileMode {
+			logutils.LogGreen("Flutter mobile app running in development mode")
+		}
+	} else if isFlutterWebMode {
+		// Flutter Web uses the same dev server approach as regular web
+		if f.Browser {
+			err = browser.OpenURL(f.DevServerURL().String())
+			if err != nil {
+				return err
+			}
+		}
+		logutils.LogGreen("Using Flutter Web DevServer URL: %s", f.DevServerURL())
+		if f.FrontendDevServerURL != "" {
+			logutils.LogGreen("Using Frontend DevServer URL: %s", f.FrontendDevServerURL)
 		}
 	} else {
 		if f.Browser {
@@ -188,6 +217,15 @@ func Application(f *flags.Dev, logger *clilogger.CLILogger) error {
 			logutils.LogGreen("Flutter app should connect to this server for backend communication")
 		} else if isFFIMode {
 			logutils.LogGreen("\n\nFFI library build mode active - watching and rebuilding shared library on changes")
+		} else if isFlutterWebMode {
+			logutils.LogGreen("\n\nFlutter Web development server running")
+			logutils.LogGreen("To develop in the browser and call your bound Go methods from Flutter, navigate to: %s", f.DevServerURL())
+		} else if isFlutterDesktopMode {
+			logutils.LogGreen("\n\nFlutter Desktop/Mobile development mode active")
+			logutils.LogGreen("Flutter app is running with hot reload enabled")
+		} else if isFlutterMobileMode {
+			logutils.LogGreen("\n\nFlutter Mobile development mode active")
+			logutils.LogGreen("Flutter mobile app is running with hot reload enabled")
 		} else {
 			logutils.LogGreen("\n\nTo develop in the browser and call your bound Go methods from Javascript, navigate to: %s", f.DevServerURL())
 		}
